@@ -3,29 +3,20 @@
   import { goto } from '$app/navigation';
   import type { Product } from '$lib/types';
   import Modal from '../../lib/components/Modal.svelte';
-  import Toast from '../../lib/components/Toast.svelte';
-  import { toast } from '../../lib/toastStore';
+  import { toasts } from '$lib/toastStore';
   
   type CartItem = Product & { quantity: number };
   let cartItems: CartItem[] = [];
   let checkoutComplete = false;
   
-  // Modal state
   let showModal = false;
   let productToRemove: number | null = null;
-  
-  // Subscribe to toast store
-  let toastState = { show: false, message: '', type: 'success', duration: 3000 };
-  const unsubscribe = toast.subscribe(value => {
-    toastState = value;
-  });
 
   onMount(() => {
     const storedCart = sessionStorage.getItem('cart');
     if (storedCart) {
       try {
         cartItems = JSON.parse(storedCart);
-        // Ensure all items have a valid quantity
         cartItems = cartItems.map(item => ({
           ...item,
           quantity: item.quantity || 1
@@ -35,16 +26,10 @@
         cartItems = [];
       }
     }
-    
-    return () => {
-      unsubscribe();
-    };
   });
 
   function updateQuantity(productId: number, newQty: number) {
     console.log(`Updating product ${productId} to quantity ${newQty}`);
-    
-    // Create a new array to ensure proper reactivity
     cartItems = cartItems.map(item => {
       if (item.id === productId) {
         const updatedItem = { ...item, quantity: Math.max(1, newQty) };
@@ -74,14 +59,11 @@
   }
 
   function removeFromCart(productId: number) {
-    // Find the item name before removing for the toast message
     const itemName = cartItems.find(item => item.id === productId)?.title || 'Item';
     
     cartItems = cartItems.filter(item => item.id !== productId);
     sessionStorage.setItem('cart', JSON.stringify(cartItems));
-    
-    // Show success toast
-    toast.success(`${itemName} successfully removed from cart`);
+    toasts.error(`successfully removed from cart`);
   }
 
   function calculateTotal(): number {
@@ -95,7 +77,7 @@
     checkoutComplete = true;
     cartItems = [];
     sessionStorage.removeItem('cart');
-    toast.success('Order successfully placed!');
+    toasts.success(`Order successfully placed!`);
   }
 
   function goBack() {
@@ -106,7 +88,7 @@
 <main class="container checkout">
   <div class="header">
     <h1>Your Shopping Cart</h1>
-    <button class="back-button" on:click={goBack}>
+    <button class="back-button" onclick={goBack}>
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
       Go Back
     </button>
@@ -117,14 +99,16 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="success-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
       <h2>Thank you for your order!</h2>
       <p>Your order has been successfully placed and is being processed.</p>
-      <button class="primary-button" on:click={goBack}>Return to Home</button>
+      <div class="button-container">
+        <button class="primary-button" onclick={goBack}>Return to Home</button>
+      </div>
     </div>
   {:else if cartItems.length === 0}
     <div class="empty-cart-message">
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="empty-cart-icon"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>
       <h2>Your cart is empty</h2>
       <p>Looks like you haven't added any products to your cart yet.</p>
-      <button class="browse-button primary-button" on:click={() => goto('/products')}>
+      <button class="browse-button primary-button" onclick={() => goto('/products')}>
         Browse Products
       </button>
     </div>
@@ -158,7 +142,7 @@
                 <div class="quantity-control">
                   <button 
                     class="quantity-btn" 
-                    on:click={() => {
+                    onclick={() => {
                       const newQty = Math.max(1, item.quantity - 1);
                       updateQuantity(item.id, newQty);
                     }}
@@ -169,7 +153,7 @@
                   <span class="quantity-display">{item.quantity || 1}</span>
                   <button 
                     class="quantity-btn" 
-                    on:click={() => {
+                    onclick={() => {
                       const newQty = (item.quantity || 1) + 1;
                       updateQuantity(item.id, newQty);
                     }}
@@ -181,7 +165,7 @@
               </td>
               <td class="item-total">${(item.price * item.quantity).toFixed(2)}</td>
               <td>
-                <button class="remove-button" on:click={() => openRemoveModal(item.id)}>
+                <button class="remove-button" onclick={() => openRemoveModal(item.id)}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="trash-icon"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                   Remove
                 </button>
@@ -200,11 +184,11 @@
     </div>
 
     <div class="checkout-actions">
-      <button class="continue-shopping" on:click={() => goto('/products')}>
+      <button class="continue-shopping" onclick={() => goto('/products')}>
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         Continue Shopping
       </button>
-      <button class="complete-order-button checkout-button" on:click={completeCheckout}>
+      <button class="complete-order-button checkout-button" onclick={completeCheckout}>
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
         Complete Order
       </button>
@@ -222,12 +206,6 @@
     on:confirm={handleConfirmRemove}
   />
 
-  <Toast 
-    show={toastState.show}
-    message={toastState.message}
-    type={toastState.type}
-    duration={toastState.duration}
-  />
 </main>
 
 <style>
@@ -498,6 +476,10 @@
 
   .complete-order-button:hover {
     background-color: #27ae60;
+  }
+
+  .button-container{
+    margin-top: 20px;
   }
 
   .primary-button {

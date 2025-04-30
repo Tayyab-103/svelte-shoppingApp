@@ -4,14 +4,14 @@
 </script>
 
 <div class="app">
-  <header>
+  <header >
     <div class="header-content">
       <h1 class="site-title">Shopping App</h1>
     </div>
   </header>
   
   <main>
-    <Toasts />
+    <Toasts position="bottom-right"/>
     <slot />
   </main>
   

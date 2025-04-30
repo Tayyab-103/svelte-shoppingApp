@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { toasts } from '$lib/toastStore';
   import type { Product } from '$lib/types';
   import cartIcon from '$lib/assets/Cart-Icon.svg';
   
@@ -13,18 +14,18 @@
 
   let animate = false;
 
-$: if (cart.length > 0) {
-  animate = true;
-  setTimeout(() => {
-    animate = false;
-  }, 400); 
-}
+  $: if (cart.length > 0) {
+    animate = true;
+    setTimeout(() => {
+      animate = false;
+    }, 400); 
+  }
 
-$: if (products.length > 0) {
-  filteredProducts = products.filter(product => 
-    product.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-}
+  $: if (products.length > 0) {
+    filteredProducts = products.filter(product => 
+      product.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
   
   onMount(async () => {
     try {
@@ -37,7 +38,7 @@ $: if (products.length > 0) {
       }
       
       setTimeout(async () => {
-        const response = await fetch('https://fakestoreapi.com/products');
+        const response = await fetch('/api/products');
         products = await response.json();
         filteredProducts = products;
         loading = false;
@@ -45,6 +46,7 @@ $: if (products.length > 0) {
     } catch (error) {
       console.error('Error fetching products:', error);
       loading = false;
+      toasts.error('Failed to load products. Please try again later.');
     }
   });
   
@@ -53,10 +55,12 @@ $: if (products.length > 0) {
       cart = cart.filter(item => item.id !== product.id);
       productInCart[product.id] = false;
       productInCart = {...productInCart}; 
+      toasts.info(`${product.title} removed from your shopping cart`);
     } else {
       cart = [...cart, product];
       productInCart[product.id] = true;
       productInCart = {...productInCart}; 
+      toasts.success(`${product.title} added to your shopping cart`);
     }
     sessionStorage.setItem('cart', JSON.stringify(cart));
   }
@@ -73,7 +77,7 @@ $: if (products.length > 0) {
     searchTerm = '';
   }
 
-  const handleRedirect = () => {
+  function handleRedirect() {
     goto("/checkout");
   }
 </script>
@@ -81,7 +85,7 @@ $: if (products.length > 0) {
 <main class="container">
   <div class="header">
     <h1>Products</h1>
-    <button class="back-button" onclick={goBack}>
+    <button class="back-button" on:click={goBack}>
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
       Go Back
     </button>
@@ -94,10 +98,10 @@ $: if (products.length > 0) {
         placeholder="Search products by name..." 
         class="search-input" 
         value={searchTerm} 
-        oninput={handleSearch}
+        on:input={handleSearch}
       />
       {#if searchTerm}
-        <button class="clear-search" onclick={clearSearch}>
+        <button class="clear-search" on:click={clearSearch}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       {/if}
@@ -112,7 +116,7 @@ $: if (products.length > 0) {
   {:else if filteredProducts.length === 0}
     <div class="no-results">
       <p>No products found matching "{searchTerm}"</p>
-      <button class="reset-search" onclick={clearSearch}>Clear Search</button>
+      <button class="reset-search" on:click={clearSearch}>Clear Search</button>
     </div>
   {:else}
     <div class="products-grid">
@@ -125,7 +129,7 @@ $: if (products.length > 0) {
             <p class="product-price">${product.price.toFixed(2)}</p>
             <button 
               class="add-to-cart-button {productInCart[product.id] ? 'added' : ''}" 
-              onclick={() => toggleCart(product)}
+              on:click={() => toggleCart(product)}
             >
               {productInCart[product.id] ? 'Remove from Cart' : 'Add to Cart'}
             </button>
@@ -136,10 +140,10 @@ $: if (products.length > 0) {
   {/if}
   
   {#if cart.length > 0}
-    <button class="cart-preview" onclick={handleRedirect}>
+    <button class="cart-preview" on:click={handleRedirect}>
       <img
         alt="The project logo"
-        src={cartIcon}
+        src={cartIcon || "/placeholder.svg"}
         height="50"
         class:bounce={animate}
       />
@@ -162,7 +166,6 @@ $: if (products.length > 0) {
   .search-input-wrapper {
     position: relative;
     max-width: 500px;
-    /* margin: 0 auto; */
   }
   
   .search-input {
@@ -398,5 +401,72 @@ $: if (products.length > 0) {
 
   .bounce {
     animation: bounce 0.4s ease;
+  }
+  
+  /* Toast Styles */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  
+  .toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 250px;
+    max-width: 350px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    animation: slideIn 0.3s ease-out forwards;
+    color: white;
+  }
+  
+  .toast-success {
+    background-color: #4caf50;
+  }
+  
+  .toast-info {
+    background-color: #3498db;
+  }
+  
+  .toast-error {
+    background-color: #e74c3c;
+  }
+  
+  .toast-content {
+    flex: 1;
+    margin-right: 10px;
+  }
+  
+  .toast-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  
+  .toast-close:hover {
+    opacity: 1;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
 </style>
